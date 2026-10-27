@@ -17,7 +17,7 @@ setup:dev builds and installs this repository’s hooks. Git-dependency prepare 
 builds exports; it must not install hooks into a consumer repository.
 `npm run format` explicitly writes formatting; `format:check` checks the same scope.
 The hook tests create owned disposable Git repositories with normal Husky hooks,
-ordinary commits and offline npm. They never run customer code or hosted CI.
+ordinary commits; installation smoke tests use the npm registry. They never run customer code or hosted CI.
 
 ## Consumer adoption (separate reviewed changes)
 
