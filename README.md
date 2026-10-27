@@ -1,44 +1,18 @@
-# ReleaseReady code quality (RRDSCRUM-69 draft)
+# Shared TypeScript code quality (RRDSCRUM-69)
 
-Shared formatting and lint rules for standalone repositories.
+## Development
 
-## Supported tools
+Use tested Node 22.23.4 and the exact package/lockfile pins. ESLint 10.13.0 and typescript-eslint 8.72.1 support TypeScript 5.9.3, not TypeScript 7. Pinned jiti loads TS configurations; only emitted dist JavaScript is generated.
+After cloning: `npm ci`, `npm run setup:dev`, then `npm run check`. Developer setup builds and installs Husky hooks. Git-dependency prepare builds exports only and must not alter consumer hooks.
+Tests use disposable Git repositories and ordinary commits. Installation smoke tests access the npm registry; no customer code or hosted CI runs.
 
-Node 22.23.4 is the tested runtime. Exact pins are in package.json and the npm lock.
-ESLint 10.13.0, typescript-eslint 8.72.1 and TypeScript 5.9.3 have compatible declared
-peer ranges. Do not upgrade TypeScript to 7 until the parser supports it.
-ESLint loads the authored TypeScript configuration through pinned jiti 2.7.0.
-Only emitted dist JavaScript is generated; source and tests are TypeScript.
+## Reviewed consumer adoption
 
-## Local verification
-
-After cloning, run `npm ci`, `npm run setup:dev`, then `npm run check`.
-setup:dev builds and installs this repository’s hooks. Git-dependency prepare only
-builds exports; it must not install hooks into a consumer repository.
-`npm run format` explicitly writes formatting; `format:check` checks the same scope.
-The hook tests create owned disposable Git repositories with normal Husky hooks,
-ordinary commits; installation smoke tests use the npm registry. They never run customer code or hosted CI.
-
-## Consumer adoption (separate reviewed changes)
-
-Install the shared package at an approved immutable Git SHA after publication.
-Declare the command-line tools directly at the exact versions in this package:
-ESLint, Prettier, Husky, lint-staged, jiti and TypeScript. Do not rely on a transitive
-binary being hoisted into the consumer node_modules directory. Preserve lockfiles.
-
-An eslint.config.ts imports `qualityConfig` from
-`@releaseready/code-quality/eslint` and exports
-`qualityConfig(import.meta.dirname, ['src/**/*.ts', 'tests/**/*.ts'])`.
-Use the actual project-covered paths, including TSX where present. Application and
-test files use recommended type-checked rules with projectService. Legitimate
-configuration files outside a project retain recommended non-type-aware rules;
-do not put application files there to evade typed linting. The final shared preset
-is eslint-config-prettier, so stylistic conflicts do not duplicate formatting.
-
-Set package.json `prettier` to `@releaseready/code-quality/prettier`.
-A lint-staged.config.ts re-exports the default from
-`@releaseready/code-quality/lint-staged`.
-Use these scripts (adapt build paths, not the checking policy):
+Pin an approved immutable Git SHA. Declare ESLint, Prettier, Husky, lint-staged, jiti and TypeScript directly at this package's exact versions; preserve lockfiles and never depend on transitive binary hoisting.
+In eslint.config.ts, import `qualityConfig` from `@releaseready/code-quality/eslint` and export `qualityConfig(import.meta.dirname, ['src/**/*.ts', 'tests/**/*.ts'])`.
+Use actual project-covered paths, including TSX. Application/tests receive recommended type-checked projectService rules. Legitimate out-of-project configs retain recommended syntax rules; do not classify application code as config to bypass typed checks.
+Add framework presets only through reviewed adoption and keep eslint-config-prettier last.
+Set package.json `prettier` to `@releaseready/code-quality/prettier`. In lint-staged.config.ts, re-export the default from `@releaseready/code-quality/lint-staged`.
 
 ```json
 {
@@ -50,44 +24,21 @@ Use these scripts (adapt build paths, not the checking policy):
 }
 ```
 
-Copy the pinned package quality.ignore to the consumer root during reviewed adoption
-and refresh that exact copy on package upgrades. Prettier interprets ignores relative
-to their file, so never point it into node_modules. Copy hooks/pre-commit to
-.husky/pre-commit and run the installed local Husky setup.
-For repositories without an existing build prepare step, use `husky` alone.
-Do not overwrite existing prepare behavior. Generated outputs and dependencies
-may be ignored; do not exclude authored code or weaken existing checks.
+Copy the pinned quality.ignore into the consumer root and refresh it on upgrades: Prettier resolves paths relative to that file, so never point into node_modules.
+Copy hooks/pre-commit to .husky/pre-commit and run local Husky setup. Preserve any existing prepare/build behavior; a consumer without a build step can use `husky` alone.
 
-The hook checks staged formatting and lint without --fix. Run format explicitly,
-review the diff, then stage it yourself. Always use --hide-unstaged: type-aware checks must also hide unstaged changes
-in imported files. lint-staged retains its backup and restores the working state.
-quality.ignore is the shared generated-path policy for formatting, lint and staged
-selection; the maintained ignore library filters paths before either tool runs. ESLint uses
-its supported includeIgnoreFile helper; CRLF, blank lines and comments are valid.
-Native lint-staged tasks pass filename arrays directly to tool APIs without shell
-quoting. Missing dependencies fail;
-the hook never runs npx or downloads a substitute. Local hooks can be bypassed by
-users and are not an absolute access-control boundary. Hosted check/protection
-policy is unchanged.
+## Commit behavior
 
-Add reviewed framework presets during adoption; keep eslint-config-prettier last.
+Formatting writes only through the explicit format command. Review and stage that diff yourself; hooks check without --fix. Format and format:check cover the same scope. Both CLI and staged checks honor EditorConfig, with explicit Prettier options taking precedence.
+Always retain --hide-unstaged, backups and restoration: typed checks must not see unstaged changes in imported files.
+The shared ignore policy excludes generated outputs, never authored code. Maintained ignore semantics and ESLint includeIgnoreFile support CRLF, comments and blank lines. Generated paths are filtered before tool invocation.
+Native lint-staged tasks pass filenames directly to APIs without shell quoting. Missing dependencies fail closed; hooks never download substitutes through npx.
+The approved portable-filename rule rejects literal backslashes before normalization using Git's NUL-delimited names. It reports an actionable error without renaming or hiding files; spaces, Unicode and quotes remain supported. No broader filename ban applies.
+Local hooks are bypassable, not an access-control boundary. Hosted check and branch-protection policy is unchanged.
 
-Sources: [ESLint TypeScript configuration](https://eslint.org/docs/latest/use/configure/configuration-files),
-[typescript-eslint](https://typescript-eslint.io/packages/typescript-eslint/),
-[lint-staged](https://github.com/lint-staged/lint-staged),
-[Husky](https://typicode.github.io/husky/how-to.html).
+## Governance boundary
 
-## DevOps governance boundary
+A later ticket may add reusable Sonar workflows, secure pins, gate enforcement and defaults. Products retain project keys and source/test/coverage paths; credentials stay in GitHub Secrets and gate administration in Sonar. This package changes neither hosted scans nor Sonar settings.
+Future PRs are regular PRs: DO NOT MERGE identifies blockers; Ready To Review requires exact-head verification. Owners review and merge.
 
-A later ticket may add reusable Sonar scan workflows, secure action pins, gate
-enforcement and analysis defaults. Product repositories retain project keys and
-source/test/coverage paths; secrets stay in GitHub Secrets and gate administration
-stays in Sonar. This package adds no hosted scans or Sonar settings.
-
-Future PRs are regular PRs. Use DO NOT MERGE for blockers and Ready To Review
-only after exact-head verification; repository owners review and merge.
-
-The approved portable-filename policy rejects literal backslashes before lint-staged
-normalizes paths. The check reads Git’s NUL-delimited staged names, never renames
-or hides files, and reports an actionable error. Spaces, Unicode and quotes remain
-supported. No broader filename restriction is imposed.
+Sources: [ESLint](https://eslint.org/docs/latest/use/configure/configuration-files), [typescript-eslint](https://typescript-eslint.io/packages/typescript-eslint/), [lint-staged](https://github.com/lint-staged/lint-staged), [Husky](https://typicode.github.io/husky/how-to.html).

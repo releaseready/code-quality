@@ -11,7 +11,10 @@ async function check(files: readonly string[], lint: boolean) {
     (file) => !policy.ignores(relative(process.cwd(), file)),
   );
   for (const file of selected) {
-    const options = { ...(await prettier.resolveConfig(file)), filepath: file };
+    const options = {
+      ...(await prettier.resolveConfig(file, { editorconfig: true })),
+      filepath: file,
+    };
     if (!(await prettier.check(readFileSync(file, 'utf8'), options))) {
       throw new Error(`prettier: unformatted staged file ${file}`);
     }

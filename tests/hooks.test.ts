@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import sharedPrettier from '../src/prettier.js';
 import { test } from 'node:test';
 import {
   mkdtempSync,
@@ -357,4 +358,49 @@ await test('Given an immutable Git dependency, when installed, then exports buil
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+await test('Given EditorConfig indentation, when CLI-formatted code is staged, then the hook agrees while explicit shared defaults remain', () => {
+  fixture((dir) => {
+    writeFileSync(
+      join(dir, '.editorconfig'),
+      'root = true\n[*.ts]\nindent_style = space\nindent_size = 4\n',
+    );
+    stage(dir, 'export const greeting = {\nmessage: "hello",\n};\n');
+    must(dir, 'node', [
+      join(root, 'node_modules/prettier/bin/prettier.cjs'),
+      '--write',
+      'src/value.ts',
+    ]);
+    const formatted = "export const greeting = {\n    message: 'hello',\n};\n";
+    assert.equal(readFileSync(join(dir, 'src/value.ts'), 'utf8'), formatted);
+    must(dir, 'git', ['add', '.editorconfig', 'src/value.ts']);
+    must(dir, 'git', ['commit', '-m', 'When CLI and staged formatting agree']);
+    stage(dir, formatted.replace('    message', '  message'));
+    rejectCommit(dir, 'prettier');
+    const pkg = JSON.parse(
+      readFileSync(join(dir, 'package.json'), 'utf8'),
+    ) as Record<string, unknown>;
+    pkg.prettier = { ...sharedPrettier, tabWidth: 2 };
+    writeFileSync(
+      join(dir, 'package.json'),
+      JSON.stringify(pkg, null, 2) + '\n',
+    );
+    must(dir, 'node', [
+      join(root, 'node_modules/prettier/bin/prettier.cjs'),
+      '--write',
+      'src/value.ts',
+      'package.json',
+    ]);
+    assert.equal(
+      readFileSync(join(dir, 'src/value.ts'), 'utf8'),
+      formatted.replace('    message', '  message'),
+    );
+    must(dir, 'git', ['add', 'package.json', 'src/value.ts']);
+    must(dir, 'git', [
+      'commit',
+      '-m',
+      'When explicit Prettier options override EditorConfig',
+    ]);
+  });
 });
