@@ -1,7 +1,6 @@
 # ReleaseReady code quality (RRDSCRUM-69 draft)
 
-Shared formatting and lint rules for standalone repositories. This local draft is
-not published or adopted. The approved public repository has a README baseline only.
+Shared formatting and lint rules for standalone repositories.
 
 ## Supported tools
 
@@ -71,14 +70,7 @@ the hook never runs npx or downloads a substitute. Local hooks can be bypassed b
 users and are not an absolute access-control boundary. Hosted check/protection
 policy is unchanged.
 
-## Framework boundaries and rollout
-
-This first package provides the shared TS baseline, not invented framework rules.
-Add thin reviewed React/hooks, Playwright or WDIO recommended presets only with
-the corresponding consumer adoption and compatible declared direct dependencies.
-Keep eslint-config-prettier last. Mobile is idle; Web PR13 remains untouched;
-central package ownership must be handed over after its TS migration. Empty API
-and TDM repositories need ticketed tooling initialization, not feature scaffolding.
+Add reviewed framework presets during adoption; keep eslint-config-prettier last.
 
 Sources: [ESLint TypeScript configuration](https://eslint.org/docs/latest/use/configure/configuration-files),
 [typescript-eslint](https://typescript-eslint.io/packages/typescript-eslint/),
