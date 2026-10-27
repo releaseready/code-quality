@@ -1,0 +1,48 @@
+{
+  "name": "@releaseready/code-quality",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "^22.23.4 || >=24.3.0"
+  },
+  "files": [
+    "dist/src",
+    "README.md",
+    "hooks/pre-commit",
+    "quality.ignore"
+  ],
+  "exports": {
+    "./eslint": "./dist/src/eslint.js",
+    "./prettier": "./dist/src/prettier.js",
+    "./lint-staged": "./dist/src/lint-staged.js",
+    "./ignore": "./quality.ignore"
+  },
+  "scripts": {
+    "build": "tsc",
+    "format": "prettier --ignore-path quality.ignore --write .",
+    "format:check": "prettier --ignore-path quality.ignore --check .",
+    "lint": "eslint . --max-warnings 0",
+    "check:staged": "lint-staged --config dist/src/lint-staged.js --hide-unstaged",
+    "test": "node --test dist/tests/*.test.js",
+    "check": "npm run build && npm run format:check && npm run lint && npm test",
+    "prepare": "npm run build"
+  },
+  "prettier": "./dist/src/prettier.js",
+  "dependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.13.0",
+    "eslint-config-prettier": "10.1.8",
+    "husky": "9.1.7",
+    "jiti": "2.7.0",
+    "lint-staged": "17.6.0",
+    "micromatch": "4.0.8",
+    "prettier": "3.9.10",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.72.1"
+  },
+  "devDependencies": {
+    "@types/micromatch": "4.0.10",
+    "@types/node": "22.20.5"
+  }
+}
