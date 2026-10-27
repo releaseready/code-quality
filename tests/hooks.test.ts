@@ -23,7 +23,7 @@ function command(cwd: string, executable: string, args: string[]) {
   const result = spawnSync(executable, args, {
     cwd,
     encoding: 'utf8',
-    timeout: 30_000,
+    timeout: executable === 'npm' ? 120_000 : 30_000,
     env: {
       PATH: `${dirname(process.execPath)}:/usr/bin:/bin:/usr/sbin:/sbin`,
       HOME: cwd,
@@ -67,7 +67,7 @@ function fixture(run: (dir: string) => void) {
           private: true,
           type: 'module',
           scripts: {
-            'check:staged': `node node_modules/lint-staged/bin/lint-staged.js --hide-unstaged --config "${join(root, 'dist/src/lint-staged.js')}"`,
+            'check:staged': `node "${join(root, 'dist/src/check-paths.js')}" && node node_modules/lint-staged/bin/lint-staged.js --hide-unstaged --config "${join(root, 'dist/src/lint-staged.js')}"`,
           },
           prettier: join(root, 'dist/src/prettier.js'),
         },
@@ -242,4 +242,119 @@ await test('Given generated output and authored code, when committed, then gener
     stage(dir, bad);
     rejectCommit(dir, 'prettier');
   });
+});
+
+await test('Given quoted filenames, when committed, then their exact contents are checked', () => {
+  fixture((dir) => {
+    const names = [
+      'src/double"quote.ts',
+      "src/single'quote.ts",
+      'src/both\'"quotes.ts',
+    ];
+    for (const name of names) writeFileSync(join(dir, name), good);
+    must(dir, 'git', ['add', '--', ...names]);
+    must(dir, 'git', ['commit', '-m', 'When unusual filenames are formatted']);
+    writeFileSync(join(dir, names[0]), bad);
+    must(dir, 'git', ['add', '--', names[0]]);
+    rejectCommit(dir, 'prettier');
+    assert.equal(must(dir, 'git', ['show', `:${names[0]}`]), bad);
+  });
+});
+await test('Given CRLF, comments and blank ignore lines, when checked, then generated files stay excluded and authored code stays checked', () => {
+  fixture((dir) => {
+    const policy =
+      '# Generated outputs\r\n\r\n' +
+      readFileSync(join(dir, 'quality.ignore'), 'utf8').replaceAll(
+        '\n',
+        '\r\n',
+      );
+    writeFileSync(join(dir, 'quality.ignore'), policy);
+    mkdirSync(join(dir, 'dist'));
+    writeFileSync(join(dir, 'dist/generated.ts'), bad);
+    must(dir, 'git', ['add', 'quality.ignore', 'dist/generated.ts']);
+    must(dir, 'git', [
+      'commit',
+      '-m',
+      'When an ignore file uses Windows lines',
+    ]);
+    must(dir, 'node', [
+      join(root, 'node_modules/eslint/bin/eslint.js'),
+      '.',
+      '--max-warnings',
+      '0',
+    ]);
+    must(dir, 'node', [
+      join(root, 'node_modules/prettier/bin/prettier.cjs'),
+      '--check',
+      '--ignore-path',
+      'quality.ignore',
+      '.',
+    ]);
+    stage(dir, bad);
+    rejectCommit(dir, 'prettier');
+  });
+});
+
+await test('Given a literal backslash filename, when committed, then it is rejected without changing the index or working copy', () => {
+  fixture((dir) => {
+    const name = 'src/back\\slash.ts';
+    writeFileSync(join(dir, name), good);
+    must(dir, 'git', ['add', '--', name]);
+    rejectCommit(dir, 'Literal backslashes');
+    assert.equal(must(dir, 'git', ['show', `:${name}`]), good);
+    assert.equal(readFileSync(join(dir, name), 'utf8'), good);
+    assert.equal(must(dir, 'git', ['stash', 'list']), '');
+  });
+});
+await test('Given a fresh clone, when developer setup runs, then build-only installation becomes a working commit hook', () => {
+  const dir = mkdtempSync(join(fixtureRoot, 'clone-'));
+  try {
+    must(root, 'git', ['clone', '--quiet', '--no-hardlinks', root, dir]);
+    must(dir, 'npm', ['ci', '--offline=false', '--no-audit', '--no-fund']);
+    assert.equal(
+      command(dir, 'git', ['config', '--local', '--get', 'core.hooksPath'])
+        .status,
+      1,
+    );
+    must(dir, 'npm', ['run', 'setup:dev']);
+    assert.equal(
+      must(dir, 'git', ['config', '--local', '--get', 'core.hooksPath']).trim(),
+      '.husky/_',
+    );
+    stage(dir, bad);
+    rejectCommit(dir, 'prettier');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+await test('Given an immutable Git dependency, when installed, then exports build without installing consumer hooks', () => {
+  const dir = mkdtempSync(join(fixtureRoot, 'dependency-'));
+  try {
+    must(dir, 'git', ['init', '--quiet']);
+    writeFileSync(join(dir, 'package.json'), '{"private":true}\n');
+    const revision = must(root, 'git', ['rev-parse', 'HEAD']).trim();
+    must(dir, 'npm', [
+      'install',
+      '--offline=false',
+      '--no-audit',
+      '--no-fund',
+      `git+file://${root}#${revision}`,
+    ]);
+    assert.equal(
+      command(dir, 'git', ['config', '--local', '--get', 'core.hooksPath'])
+        .status,
+      1,
+    );
+    assert.ok(
+      readFileSync(join(dir, 'package-lock.json'), 'utf8').includes(revision),
+    );
+    assert.ok(
+      readFileSync(
+        join(dir, 'node_modules/@releaseready/code-quality/dist/src/eslint.js'),
+        'utf8',
+      ).includes('qualityConfig'),
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

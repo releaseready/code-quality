@@ -16,17 +16,19 @@
     "./eslint": "./dist/src/eslint.js",
     "./prettier": "./dist/src/prettier.js",
     "./lint-staged": "./dist/src/lint-staged.js",
-    "./ignore": "./quality.ignore"
+    "./ignore": "./quality.ignore",
+    "./check-paths": "./dist/src/check-paths.js"
   },
   "scripts": {
     "build": "tsc",
     "format": "prettier --ignore-path quality.ignore --write .",
     "format:check": "prettier --ignore-path quality.ignore --check .",
     "lint": "eslint . --max-warnings 0",
-    "check:staged": "lint-staged --config dist/src/lint-staged.js --hide-unstaged",
+    "check:staged": "node dist/src/check-paths.js && lint-staged --config dist/src/lint-staged.js --hide-unstaged",
     "test": "node --test dist/tests/*.test.js",
     "check": "npm run build && npm run format:check && npm run lint && npm test",
-    "prepare": "npm run build"
+    "prepare": "npm run build",
+    "setup:dev": "npm run build && husky"
   },
   "prettier": "./dist/src/prettier.js",
   "dependencies": {
@@ -34,15 +36,14 @@
     "eslint": "10.13.0",
     "eslint-config-prettier": "10.1.8",
     "husky": "9.1.7",
+    "ignore": "7.0.14",
     "jiti": "2.7.0",
     "lint-staged": "17.6.0",
-    "micromatch": "4.0.8",
     "prettier": "3.9.10",
     "typescript": "5.9.3",
     "typescript-eslint": "8.72.1"
   },
   "devDependencies": {
-    "@types/micromatch": "4.0.10",
     "@types/node": "22.20.5"
   }
 }

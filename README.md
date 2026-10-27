@@ -13,7 +13,9 @@ Only emitted dist JavaScript is generated; source and tests are TypeScript.
 
 ## Local verification
 
-Run `npm ci`, `npm run check`. `prepare` builds the exported configurations.
+After cloning, run `npm ci`, `npm run setup:dev`, then `npm run check`.
+setup:dev builds and installs this repository’s hooks. Git-dependency prepare only
+builds exports; it must not install hooks into a consumer repository.
 `npm run format` explicitly writes formatting; `format:check` checks the same scope.
 The hook tests create owned disposable Git repositories with normal Husky hooks,
 ordinary commits and offline npm. They never run customer code or hosted CI.
@@ -44,7 +46,7 @@ Use these scripts (adapt build paths, not the checking policy):
   "format": "prettier --ignore-path quality.ignore --write .",
   "format:check": "prettier --ignore-path quality.ignore --check .",
   "lint": "eslint . --max-warnings 0",
-  "check:staged": "node node_modules/lint-staged/bin/lint-staged.js --hide-unstaged",
+  "check:staged": "node node_modules/@releaseready/code-quality/dist/src/check-paths.js && node node_modules/lint-staged/bin/lint-staged.js --hide-unstaged",
   "prepare": "npm run build && husky"
 }
 ```
@@ -61,7 +63,10 @@ The hook checks staged formatting and lint without --fix. Run format explicitly,
 review the diff, then stage it yourself. Always use --hide-unstaged: type-aware checks must also hide unstaged changes
 in imported files. lint-staged retains its backup and restores the working state.
 quality.ignore is the shared generated-path policy for formatting, lint and staged
-selection; micromatch filters generated paths before invoking either tool. Missing dependencies fail;
+selection; the maintained ignore library filters paths before either tool runs. ESLint uses
+its supported includeIgnoreFile helper; CRLF, blank lines and comments are valid.
+Native lint-staged tasks pass filename arrays directly to tool APIs without shell
+quoting. Missing dependencies fail;
 the hook never runs npx or downloads a substitute. Local hooks can be bypassed by
 users and are not an absolute access-control boundary. Hosted check/protection
 policy is unchanged.
@@ -86,3 +91,11 @@ A later ticket may add reusable Sonar scan workflows, secure action pins, gate
 enforcement and analysis defaults. Product repositories retain project keys and
 source/test/coverage paths; secrets stay in GitHub Secrets and gate administration
 stays in Sonar. This package adds no hosted scans or Sonar settings.
+
+Future PRs are regular PRs. Use DO NOT MERGE for blockers and Ready To Review
+only after exact-head verification; repository owners review and merge.
+
+The approved portable-filename policy rejects literal backslashes before lint-staged
+normalizes paths. The check reads Git’s NUL-delimited staged names, never renames
+or hides files, and reports an actionable error. Spaces, Unicode and quotes remain
+supported. No broader filename restriction is imposed.
